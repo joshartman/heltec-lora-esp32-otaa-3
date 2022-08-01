@@ -10,13 +10,14 @@
 
 #include "secrets/lorawan_keys.h"
 
+#define REVISION 3
 #define DEVID 1
-#define FPORT 3
+#define FPORT REVISION
 
 struct __attribute__((__packed__)) databytes_struct {
     uint8_t revision;
     uint8_t device_id;
-    int16_t temperature[1];
+    int16_t temperature;
 };
 typedef databytes_struct databytes_t;
 
@@ -30,7 +31,7 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 DeviceAddress temperatureSensor;
 
-static databytes_t mydata;
+static databytes_t mydata = {REVISION, DEVID, 0};
 
 static osjob_t sendjob;
 static osjob_t triggerjob;
@@ -88,18 +89,12 @@ void triggerReadTemp()
 
 void readTemps()
 {
-    int16_t rawTemperature = sensors.getTemp(temperatureSensor);
-    Serial.printf("Read Temps = %04x\n", rawTemperature);
+     mydata.temperature = sensors.getTemp(temperatureSensor);
+    Serial.printf("Read Temps = %04x\n", mydata.temperature);
 
-    memset(&mydata, 0, sizeof(mydata));
-    mydata.revision = FPORT;
-    mydata.device_id = DEVID;
-    mydata.temperature[0] = rawTemperature;
-    //memccpy(mydata, &rawTemperature, 1, sizeof(rawTemperature));
-
-    float temperature = sensors.rawToCelsius(rawTemperature);
+    float temperature = sensors.rawToCelsius(mydata.temperature);
     char buf[16];
-    sprintf(buf, "=%0.2fa", temperature);
+    sprintf(buf, "=%0.2f%c%d", temperature,'a'+mydata.device_id,mydata.revision);
     u8x8.drawString(0, 0, buf);
 }
 
